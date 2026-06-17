@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Türkiye Lab - Veri Paneli</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #header { background: #2c3e50; color: white; padding: 15px; text-align: center; }
+        #main { display: flex; flex: 1; }
+        #map { flex: 2; border-right: 2px solid #ddd; }
+        #panel { flex: 1; padding: 20px; background: #f9f9f9; overflow-y: auto; }
+        .city-img { width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>Türkiye Lab: İstatistik ve Veri Görselleştirme</h1>
+</div>
+
+<div id="main">
+    <div id="map"></div>
+    <div id="panel">
+        <div id="welcome-msg"><h3>Lütfen haritadan bir şehir seçin.</h3></div>
+        <div id="city-details" style="display:none;">
+            <h2 id="city-name"></h2>
+            <img id="city-image" class="city-img" src="" alt="">
+            <div id="city-data"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var map = L.map('map').setView([39.0, 35.0], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    var geoData = {{ geojson_data | tojson }};
+    var statsData = {{ stats | tojson }};
+
+    function sehirSec(e) {
+        var layer = e.target;
+        var name = layer.feature.properties.name; // GeoJSON içindeki 'name' alanı
+        
+        document.getElementById('welcome-msg').style.display = 'none';
+        document.getElementById('city-details').style.display = 'block';
+        document.getElementById('city-name').innerText = name;
+
+        // Resim Yolunu Oluştur (Küçük harfe çevirip Türkçe karakterleri düzeltir)
+        var imgName = name.toLowerCase().replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c');
+        document.getElementById('city-image').src = "/static/resimler/" + imgName + ".jpg";
+
+        // Verileri Getir
+        var details = statsData[name] || statsData[name.toUpperCase()];
+        var dataHtml = "<ul>";
+        if(details) {
+            for (var key in details) {
+                dataHtml += "<li><strong>" + key + ":</strong> " + details[key] + "</li>";
+            }
+        } else {
+            dataHtml += "<li>Bu şehir için veri bulunamadı.</li>";
+        }
+        dataHtml += "</ul>";
+        document.getElementById('city-data').innerHTML = dataHtml;
+
+        // Görsel Vurgu
+        geoLayer.eachLayer(function(l){ geoLayer.resetStyle(l); });
+        layer.setStyle({fillColor: 'red', fillOpacity: 0.5});
+    }
+
+    var geoLayer = L.geoJSON(geoData, {
+        style: { color: "#2980b9", weight: 2, fillOpacity: 0.1 },
+        onEachFeature: function(feature, layer) {
+            layer.on('click', sehirSec);
+        }
+    }).addTo(map);
+</script>
+</body>
+</html>
